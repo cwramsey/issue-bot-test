@@ -1,0 +1,41 @@
+{
+  "name": "openmpi-github-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run lint && npm run test && tsc",
+    "lint": "eslint ./src/**/*.ts",
+    "start": "npm run build && node dist/index.js",
+    "test": "jest --config=package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cwramsey/issue-bot-test.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cwramsey/issue-bot-test/issues"
+  },
+  "homepage": "https://github.com/cwramsey/issue-bot-test#readme",
+  "dependencies": {
+    "github-api": "^3.2.0",
+    "source-map-support": "^0.5.12"
+  },
+  "jest": {
+    "preset": "ts-jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.13",
+    "@types/source-map-support": "^0.5.0",
+    "@typescript-eslint/parser": "^1.9.0",
+    "eslint": "^5.16.0",
+    "eslint-config-prettier": "^4.3.0",
+    "eslint-plugin-prettier": "^3.1.0",
+    "jest": "^24.8.0",
+    "prettier": "^1.17.1",
+    "ts-jest": "^24.0.2",
+    "typescript": "^3.4.5"
+  }
+}
