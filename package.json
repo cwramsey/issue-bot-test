@@ -20,15 +20,22 @@
   },
   "homepage": "https://github.com/cwramsey/issue-bot-test#readme",
   "dependencies": {
+    "@octokit/rest": "^16.26.0",
+    "dotenv": "^8.0.0",
     "github-api": "^3.2.0",
-    "source-map-support": "^0.5.12"
+    "oauth": "^0.9.15",
+    "source-map-support": "^0.5.12",
+    "winston": "^3.2.1"
   },
   "jest": {
     "preset": "ts-jest"
   },
   "devDependencies": {
+    "@types/dotenv": "^6.1.1",
     "@types/jest": "^24.0.13",
+    "@types/oauth": "^0.9.1",
     "@types/source-map-support": "^0.5.0",
+    "@types/winston": "^2.4.4",
     "@typescript-eslint/parser": "^1.9.0",
     "eslint": "^5.16.0",
     "eslint-config-prettier": "^4.3.0",
