@@ -1,6 +1,6 @@
 const userConfig = {
-    "owner": "open-mpi",
-    "repo": "ompi",
+    "owner": "cwramsey",
+    "repo": "issue-bot-test",
     "fetchFreq": "1",
     "issueMaxNoStateTime": "1 weeks",
     "askForUpdate": "Please update the issue.",
