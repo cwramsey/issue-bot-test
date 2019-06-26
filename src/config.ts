@@ -5,6 +5,7 @@ const userConfig = {
     "issueMaxNoStateTime": "1 weeks",
     "askForUpdate": "Please update the issue.",
     "issueMaxWaitTimeToRelease": "1 hours",
-    "closeIssueNote": "Close this issue due to awaiting user information for too long"
+    "closeIssueNote": "Close this issue due to awaiting user information for too long",
+    "askingForChange": "Please change the PR"
 }
 export default userConfig;
