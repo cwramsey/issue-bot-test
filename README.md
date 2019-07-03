@@ -1,5 +1,7 @@
 ## Get Started
 
+* Add github creds into .env file
+
 **Running locally with SAM:**
 
 To get started with the local development:
