@@ -4,7 +4,7 @@ import Octokit from "@octokit/rest";
 import logger from "./logger";
 import client from "./client";
 import userConfig from "./config";
-import { isEmpty, size } from 'lodash';
+import { isEmpty, size, includes } from 'lodash';
 
 // Setup env variables and source maps
 install();
@@ -151,6 +151,14 @@ async function getSinglePullRequest(client: Octokit, prNum: number) {
   return res;
 }
 
+async function getSingleCommit(client: Octokit, sha: any) {
+  const res = await client.repos.getCommit({
+    owner: userConfig.owner,
+    repo: userConfig.repo,
+    sha: sha
+  })
+  return res;
+}
 async function getSingleIssue(client: Octokit, issueNum: number) {
   const res = await client.issues.get({
     owner: userConfig.owner,
@@ -178,6 +186,17 @@ async function listEventForIssue(client: Octokit, issueNum: number) {
     repo: userConfig.repo,
     issue_number: issueNum
   })
+  return res;
+}
+
+async function listCommitsForPR(client: Octokit, pullNum: number) {
+  const res = await client.pulls.listCommits({
+    owner: userConfig.owner,
+    repo: userConfig.repo,
+    pull_number: pullNum,
+    per_page: 100,
+    page: 1
+  });
   return res;
 }
 
@@ -232,7 +251,22 @@ function hasLabelWithPrefix(issue: any, prefix: String) {
 
   return false;
 }
-
+//checkk if the pr contains commit with 'cherry picked from commit xxxx'
+function IsPRContainsCherryPickCommit(pr: any) {
+  listCommitsForPR(client, pr.number).then(response => {
+    response.data.forEach(eachCom => {
+      if (includes(eachCom.commit.message, 'cherry picked from commit')) {
+        //get the branch the commit is from
+        const indexOfSHA = eachCom.commit.message.indexOf('cherry picked from commit');
+        const prefix = 'cherry picked from commit'
+        //length is SHA is 40
+        const SHA = eachCom.commit.message.substring(indexOfSHA + prefix.length - 1 + 2, indexOfSHA + prefix.length - 1 + 42)
+        // supposed to have API to get the branch the commit is from 
+        // and then check if the branch is not master, add comment
+      }
+    })
+  }).catch(logger.error);
+}
 function hasFixForIssue(pr: any) {
   if (pr.hasOwnProperty('body')) {
     return pr.body.includes("Fixes #")
@@ -385,7 +419,7 @@ function PRsManagement(response: any) {
     let targetLabel = "Target: " + pr.base.ref;
 
     //if new PR, add label Target: where is the target branch, must make sure the label exists at first
-    if (!isGreaterThan(Date.now(), new Date(pr.created_at).getTime(), "", "1")) {
+    /* if (!isGreaterThan(Date.now(), new Date(pr.created_at).getTime(), "", "1")) {
       console.log("first if")
       let labelExists = false;
       allLabelsList.forEach((eachLabel: any) => {
@@ -407,33 +441,33 @@ function PRsManagement(response: any) {
           //console.log("added label", response)
         }
       ).catch(logger.error);
-    }
+    } */
 
     // remove any labels 'Target: *' except for the one that is 'Target: '
-    if (!isEmpty(pr.labels)) {
+    /* if (!isEmpty(pr.labels)) {
       hasMoreThanOneTargetLabelThenRemove(pr, targetLabel);
-    }
+    } */
 
     //pr has "Fixes #issueNo", on merge, remove "Target:" from the ticket  
-    if (hasFixForIssue(pr) && !pr.body.merged_at) {
+    /* if (hasFixForIssue(pr) && !pr.body.merged_at) {
 
       removeALabelFromIssue(client, pr.number, targetLabel).then(response => {
         console.log("remove target: label", response)
       }).catch(logger.error)
-    }
-    /* if () {
-      //add comment asking for change if there is a "cherry picked from commit XXXX" in the commit and XXXX is not from master
-    }
-    */
+    } */
+    /*  if (IsPRContainsCherryPickCommit(pr)) {
+       //add comment asking for change if there is a "cherry picked from commit XXXX" in the commit and XXXX is not from master
+     } */
+    IsPRContainsCherryPickCommit(pr);
     if (hasLabelWithName(pr, "⚠️ WIP-DNM!")) {
       //block PRs in "WIP-DNM"
-      //seems like there is no api to block a PR?
+      //seems like there is no API to block a PR?
     }
   })
 }
 
 async function main() {
-
+  const time = new Date();
   // fetch all issues 
   /* console.log("starting to fetch issues")
   await getIssues(client, 1, 100)
@@ -444,7 +478,7 @@ async function main() {
     .catch(logger.error); */
 
 
-  console.log("starting to fetch labels")
+  /* console.log("starting to fetch labels")
   await getLabelsForRepo(client, 1, 100).then(
     response => {
       //console.log("all labels", response)
@@ -456,16 +490,16 @@ async function main() {
   console.log("starting to fetch PRs");
   await getPRs(client, 1, 100)
     .then(response => {
-      //console.log("prs: ", response)
+      // console.log("prs: ", response)
       console.log("all PRs length:", size(response))
-      PRsManagement(response)
+      //PRsManagement(response)
     })
-    .catch(logger.error)
+    .catch(logger.error) */
 
   return null
 }
 
-main();
+//main();
 
 /* for (let i = 30; i < 100; i++) {
   createIssues(client, i)
@@ -476,13 +510,7 @@ main();
     .catch(logger.error)
 } */
 
-  // entry point for AWS Lambda
-/* exports.handler = (event: any) => {
-  getIssues(client)
-    .then(response => {
-      //logger.info("Response is %v", response)
-      console.log("Response is: ", response)
-    })
-    .catch(logger.error);
+// entry point for AWS Lambda
+exports.handler = (event: any) => {
+  main();
 }
- */
