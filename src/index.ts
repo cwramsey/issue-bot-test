@@ -13,6 +13,14 @@ logger.info("Application has been initialized.");
 logger.info("Running in mode %s", process.env.NODE_ENV);
 
 let allLabelsList: Array<any> = []
+const CHERRYPICK = 'cherry picked from commit'
+const fetchFreq = userConfig.fetchFreq
+const issueMaxNoStateTime = userConfig.issueMaxNoStateTime
+const issueMaxWaitTimeToRelease = userConfig.issueMaxWaitTimeToRelease
+
+const WEEK_MM = 604800000
+const DAY_MM = 86400000
+const HR_MM = 3600000
 
 async function getIssues(client: Octokit, pageNum: number, maxPerPage: number) {
 
@@ -27,7 +35,7 @@ async function getIssues(client: Octokit, pageNum: number, maxPerPage: number) {
 
     if (status != 200) {
       const error = new Error(`Failed to fetch issues`)
-      logger.info("error:", status)
+      logger.error("error:", status)
       throw error;
     }
 
@@ -57,7 +65,7 @@ async function getPRs(client: Octokit, pageNum: number, maxPerPage: number) {
 
     if (status != 200) {
       const error = new Error(`Failed to fetch PRs`)
-      logger.info("error:", status)
+      logger.error("error:", status)
       throw error;
     }
 
@@ -83,7 +91,7 @@ async function getLabelsForRepo(client: Octokit, pageNum: number, maxPerPage: nu
 
     if (status != 200) {
       const error = new Error(`Failed to fetch labels`)
-      logger.info("error:", status)
+      logger.error("error:", status)
       throw error;
     }
 
@@ -233,7 +241,7 @@ function isGreaterThan(end: number, begin: number, unit: string, times: string) 
     case 'hours':
       return (end - begin) >= HR_MM * Number(times)
     default:
-      return true;
+      return true
   }
 }
 
@@ -254,15 +262,14 @@ function hasLabelWithPrefix(issue: any, prefix: String) {
 }
 
 //checkk if the pr contains commit with 'cherry picked from commit xxxx'
-function IsPRContainsCherryPickCommit(pr: any) {
+function doesPRContainsCherryPickCommit(pr: any) {
   listCommitsForPR(client, pr.number).then(response => {
     response.data.forEach(eachCom => {
-      if (includes(eachCom.commit.message, 'cherry picked from commit')) {
+      if (includes(eachCom.commit.message, CHERRYPICK)) {
         //get the branch the commit is from
-        const indexOfSHA = eachCom.commit.message.indexOf('cherry picked from commit');
-        const prefix = 'cherry picked from commit'
-        //length is SHA is 40
-        const SHA = eachCom.commit.message.substring(indexOfSHA + prefix.length - 1 + 2, indexOfSHA + prefix.length - 1 + 42)
+        const indexOfSHA = eachCom.commit.message.indexOf(CHERRYPICK);
+        //length of SHA is 40
+        const SHA = eachCom.commit.message.substring(indexOfSHA + CHERRYPICK.length - 1 + 2, indexOfSHA + CHERRYPICK.length - 1 + 42)
         // supposed to have API to get the branch the commit is from 
         // and then check if the branch is not master, add comment
       }
@@ -313,13 +320,6 @@ function hasMoreThanOneTargetLabelThenRemove(issue: any, labelName: string) {
     }
   })
 }
-const fetchFreq = userConfig.fetchFreq
-const issueMaxNoStateTime = userConfig.issueMaxNoStateTime
-const issueMaxWaitTimeToRelease = userConfig.issueMaxWaitTimeToRelease
-
-const WEEK_MM = 604800000
-const DAY_MM = 86400000
-const HR_MM = 3600000
 
 function issuesManagement(response: any) {
   const issuesList = response
@@ -332,7 +332,7 @@ function issuesManagement(response: any) {
 
     // comment on ticket when no 'State:' labels have been added to an issue in 'issueMaxNoStateTime' weeks: userConfig.askForUpdate
     if (isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1) && !hasLabelWithPrefix(issue, 'State:')) {
-      logger.info("create comment now")
+      logger.info('Commenting request for info on issue #%s', issue.number)
       addComment(client, issue, userConfig.askForUpdate)
         .then(response => {
           logger.info("add comment response", response);
@@ -427,10 +427,10 @@ function PRsManagement(response: any) {
         logger.info("remove target: label", response)
       }).catch(logger.error)
     }
-    if (IsPRContainsCherryPickCommit(pr)) {
+    if (doesPRContainsCherryPickCommit(pr)) {
       //add comment asking for change if there is a "cherry picked from commit XXXX" in the commit and XXXX is not from master
     }
-    IsPRContainsCherryPickCommit(pr);
+    doesPRContainsCherryPickCommit(pr);
     if (hasLabelWithName(pr, "⚠️ WIP-DNM!")) {
       //block PRs in "WIP-DNM"
       //seems like there is no API to block a PR?
