@@ -189,7 +189,7 @@ async function createLabel(client: Octokit, name: string, col: string) {
   return res;
 }
 
-//events: pinned, unpinned, labeled, unlabeled, etc.
+// events: pinned, unpinned, labeled, unlabeled, etc.
 async function listEventForIssue(client: Octokit, issueNum: number) {
   const res = await client.issues.listEvents({
     owner: userConfig.owner,
@@ -261,7 +261,7 @@ function hasLabelWithPrefix(issue: any, prefix: String) {
   return false;
 }
 
-//checkk if the pr contains commit with 'cherry picked from commit xxxx'
+// checkk if the pr contains commit with 'cherry picked from commit xxxx'
 function doesPRContainsCherryPickCommit(pr: any) {
   listCommitsForPR(client, pr.number).then(response => {
     response.data.forEach(eachCom => {
@@ -275,6 +275,7 @@ function doesPRContainsCherryPickCommit(pr: any) {
       }
     })
   }).catch(logger.error);
+  return true;
 }
 
 function hasFixForIssue(pr: any) {
@@ -284,7 +285,7 @@ function hasFixForIssue(pr: any) {
   return false;
 }
 
-//go through all labels, check if there is label with name
+// go through all labels, check if there is label with name
 function hasLabelWithName(issue: any, name: String) {
   const labelList = issue.labels;
   if (isEmpty(labelList)) {
@@ -335,7 +336,7 @@ function issuesManagement(response: any) {
       logger.info('Commenting request for info on issue #%s', issue.number)
       addComment(client, issue, userConfig.askForUpdate)
         .then(response => {
-          logger.info("add comment response", response);
+          logger.info("add comment response: %s", response);
         })
         .catch(logger.error)
     }
@@ -344,7 +345,7 @@ function issuesManagement(response: any) {
     if ((!hasLabelWithName(issue, 'State: Awaiting developer information') || hasLabelWithName(issue, '')) && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1 + 1)) {
       addComment(client, issue, userConfig.askForUpdate)
         .then(response => {
-          logger.info("add comment response", response);
+          logger.info("add comment response: %s", response);
         })
         .catch(logger.error)
     }
@@ -352,16 +353,16 @@ function issuesManagement(response: any) {
     // close ticket with note when in state 'State: Awaiting user information' for X weeks
     if (isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1) && hasLabelWithName(issue, 'State: Awaiting user information')) {
 
-      //need to comment on the issue first and then close it
+      // need to comment on the issue first and then close it
       addComment(client, issue, userConfig.closeIssueNote)
         .then(response => {
-          logger.info("add close ticket note", response)
+          logger.info("add comment response: %s", response)
         })
         .catch(logger.error)
 
       closeIssue(client, issue)
         .then(response => {
-          logger.info("close issue response", response)
+          logger.info("close issue response: %s", response)
         })
         .catch(logger.error)
     }
@@ -371,13 +372,13 @@ function issuesManagement(response: any) {
 
       removeALabelFromIssue(client, issue.number, "State: Awaiting merge to release branches")
         .then(response => {
-          logger.info("remove label", response)
+          logger.info("remove label: %s", response)
         })
         .catch(logger.error)
 
       closeIssue(client, issue)
         .then(response => {
-          logger.info("close issue", response)
+          logger.info("close issue: %s", response)
         })
         .catch(logger.error)
     }
@@ -403,14 +404,14 @@ function PRsManagement(response: any) {
         //need to create the label first
         createLabel(client, targetLabel, "fbca04").then(
           response => {
-            logger.info("create label succeeded:", targetLabel)
+            logger.info("create label succeeded: %s", targetLabel)
           }).catch(logger.error)
       }
 
       //add label to this PR
       addLabelsToIssue(client, pr.number, [targetLabel]).then(
         response => {
-          //logger.info("added label", response)
+          logger.info("added label to pr response", response)
         }
       ).catch(logger.error);
     }
@@ -424,7 +425,7 @@ function PRsManagement(response: any) {
     if (hasFixForIssue(pr) && !pr.body.merged_at) {
 
       removeALabelFromIssue(client, pr.number, targetLabel).then(response => {
-        logger.info("remove target: label", response)
+        logger.info("remove target: label response: %s", response)
       }).catch(logger.error)
     }
     if (doesPRContainsCherryPickCommit(pr)) {
@@ -444,7 +445,7 @@ async function main() {
   logger.info("starting to fetch issues")
   await getIssues(client, 1, 100)
     .then(response => {
-      logger.info("all issues length:", size(response))
+      logger.info("all issues length: " + size(response))
       issuesManagement(response);
     })
     .catch(logger.error);
@@ -453,7 +454,7 @@ async function main() {
   logger.info("starting to fetch labels")
   await getLabelsForRepo(client, 1, 100).then(
     response => {
-      logger.info("all labels size: ", size(response))
+      logger.info("all labels size: " + size(response))
       allLabelsList = response;
     }
   ).catch(logger.error)
@@ -462,7 +463,7 @@ async function main() {
   logger.info("starting to fetch PRs");
   await getPRs(client, 1, 100)
     .then(response => {
-      logger.info("PRs fetched size: ", size(response))
+      logger.info("PRs fetched size: " + size(response))
       PRsManagement(response)
     })
     .catch(logger.error)
