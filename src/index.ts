@@ -12,10 +12,10 @@ install();
 logger.info("Application has been initialized.");
 logger.info("Running in mode %s", process.env.NODE_ENV);
 
-const dryRunMode = userConfig.dryRun
+const dryRunMode = process.env.DRYRUN
 
 if (dryRunMode) {
-  logger.info("Dry Run Mode")
+  logger.info("Starting in dryrun mode now")
 }
 
 let allLabelsList: Array<any> = []

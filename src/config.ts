@@ -7,7 +7,6 @@ const userConfig = {
     "needUpdateFromDeveloper": "Developer, please update the issue.",
     "issueMaxWaitTimeToRelease": "1 hours",
     "closeIssueNote": "Close this issue due to awaiting user information for too long",
-    "askingForChange": "Please change the PR",
-    "dryRun": true
+    "askingForChange": "Please change the PR"
 }
 export default userConfig;
