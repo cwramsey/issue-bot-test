@@ -15,7 +15,7 @@ To get started with the local development:
 **Running by uploading .zip file to AWS Lambda:**
 
 * run `tsc` under root folder
-* run `sh -x zipAndUpload.sh` under root folder, you will see a `tmp` folder and a test.zip file emerge
+* run `sh -x zipForLambda.sh` under root folder, you will see a `tmp` folder and a test.zip file emerge
 * Upload .zip file to AWS Lambda. Function can be triggered by CloudWatch Events and monitored by CloudWatch Logs
 
 
