@@ -120,7 +120,7 @@ async function createIssues(client: Octokit, index: number) {
 }
 
 async function addComment(client: Octokit, issue: any, comment: string) {
-  logger.info("trying to add comment to issue# %d", issue.number, "with comment: %s", comment)
+  logger.info("trying to add comment to issue# %d with comment: %s", issue.number, comment)
   if (dryRunMode) {
     return { response: 'dry run mode: add comment' };
   }
@@ -353,7 +353,7 @@ function issuesManagement(response: any) {
 
   issuesList.forEach((issue: any) => {
 
-    // skip PR, since PR is regarded as issue as well
+    // skip PR, since PR is regarded as an issue as well from github API
     if (issue.hasOwnProperty('pull_request')) {
       return;
     }
