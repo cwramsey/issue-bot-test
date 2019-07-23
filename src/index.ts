@@ -12,8 +12,14 @@ install();
 logger.info("Application has been initialized.");
 logger.info("Running in mode %s", process.env.NODE_ENV);
 
+const dryRunMode = userConfig.dryRun
+
+if (dryRunMode) {
+  logger.info("Dry Run Mode")
+}
+
 let allLabelsList: Array<any> = []
-const CHERRYPICK = 'cherry picked from commit'
+const CHERRYPICKMSG = 'cherry picked from commit'
 const fetchFreq = userConfig.fetchFreq
 const issueMaxNoStateTime = userConfig.issueMaxNoStateTime
 const issueMaxWaitTimeToRelease = userConfig.issueMaxWaitTimeToRelease
@@ -114,6 +120,10 @@ async function createIssues(client: Octokit, index: number) {
 }
 
 async function addComment(client: Octokit, issue: any, comment: string) {
+  logger.info("trying to add comment to issue# %d", issue.number, "with comment: %s", comment)
+  if (dryRunMode) {
+    return { response: 'dry run mode: add comment' };
+  }
   const res = await client.issues.createComment({
     owner: userConfig.owner,
     repo: userConfig.repo,
@@ -124,6 +134,9 @@ async function addComment(client: Octokit, issue: any, comment: string) {
 }
 
 async function closeIssue(client: Octokit, issue: any) {
+  if (dryRunMode) {
+    return { response: 'dry run mode: close issue#' + issue.number };
+  }
   const res = await client.issues.update({
     owner: userConfig.owner,
     repo: userConfig.repo,
@@ -134,6 +147,9 @@ async function closeIssue(client: Octokit, issue: any) {
 }
 
 async function removeALabelFromIssue(client: Octokit, issueNum: number, labelName: string) {
+  if (dryRunMode) {
+    return;
+  }
   const res = await client.issues.removeLabel({
     owner: userConfig.owner,
     repo: userConfig.repo,
@@ -180,6 +196,9 @@ async function getSingleIssue(client: Octokit, issueNum: number) {
 
 // create a label for this repo, can be duplicated
 async function createLabel(client: Octokit, name: string, col: string) {
+  if (dryRunMode) {
+    return;
+  }
   const res = await client.issues.createLabel({
     owner: userConfig.owner,
     repo: userConfig.repo,
@@ -211,6 +230,9 @@ async function listCommitsForPR(client: Octokit, pullNum: number) {
 }
 
 async function addLabelsToIssue(client: Octokit, issueNum: number, labels: Array<string>) {
+  if (dryRunMode) {
+    return;
+  }
   const res = await client.issues.addLabels({
     owner: userConfig.owner,
     repo: userConfig.repo,
@@ -265,11 +287,11 @@ function hasLabelWithPrefix(issue: any, prefix: String) {
 function doesPRContainsCherryPickCommit(pr: any) {
   listCommitsForPR(client, pr.number).then(response => {
     response.data.forEach(eachCom => {
-      if (includes(eachCom.commit.message, CHERRYPICK)) {
+      if (includes(eachCom.commit.message, CHERRYPICKMSG)) {
         //get the branch the commit is from
-        const indexOfSHA = eachCom.commit.message.indexOf(CHERRYPICK);
+        const indexOfSHA = eachCom.commit.message.indexOf(CHERRYPICKMSG);
         //length of SHA is 40
-        const SHA = eachCom.commit.message.substring(indexOfSHA + CHERRYPICK.length - 1 + 2, indexOfSHA + CHERRYPICK.length - 1 + 42)
+        const SHA = eachCom.commit.message.substring(indexOfSHA + CHERRYPICKMSG.length - 1 + 2, indexOfSHA + CHERRYPICKMSG.length - 1 + 42)
         // supposed to have API to get the branch the commit is from 
         // and then check if the branch is not master, add comment
       }
@@ -326,28 +348,36 @@ function issuesManagement(response: any) {
   const issuesList = response
   const times1 = issueMaxNoStateTime.substring(0, issueMaxNoStateTime.indexOf(' '))
   const unit1 = issueMaxNoStateTime.substring(issueMaxNoStateTime.indexOf(' ') + 1)
-  const times2 = issueMaxWaitTimeToRelease.substring(0, issueMaxNoStateTime.indexOf(' '))
-  const unit2 = issueMaxWaitTimeToRelease.substring(issueMaxNoStateTime.indexOf(' ') + 1)
+  const times2 = issueMaxWaitTimeToRelease.substring(0, issueMaxWaitTimeToRelease.indexOf(' '))
+  const unit2 = issueMaxWaitTimeToRelease.substring(issueMaxWaitTimeToRelease.indexOf(' ') + 1)
 
   issuesList.forEach((issue: any) => {
 
+    // skip PR, since PR is regarded as issue as well
+    if (issue.hasOwnProperty('pull_request')) {
+      return;
+    }
+
     // comment on ticket when no 'State:' labels have been added to an issue in 'issueMaxNoStateTime' weeks: userConfig.askForUpdate
     if (isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1) && !hasLabelWithPrefix(issue, 'State:')) {
-      logger.info('Commenting request for info on issue #%s', issue.number)
+      logger.info('Commenting request: asking for update on issue #%s', issue.number)
       addComment(client, issue, userConfig.askForUpdate)
         .then(response => {
-          logger.info("add comment response: %s", response);
+          logger.info("add comment response: %s");
+          logger.info(response)
         })
         .catch(logger.error)
     }
-    // comment on ticket when no updates in 'issueMaxNoStateTime' + 1, asking developer to update: userConfig.askForUpdate
+    // comment on ticket when no updates in 'issueMaxNoStateTime' + 1, asking developer to update: userConfig.needUpdateFromDeveloper
     // if no label or 'State: Awaiting developer information'
     if ((!hasLabelWithName(issue, 'State: Awaiting developer information') || hasLabelWithName(issue, '')) && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1 + 1)) {
-      addComment(client, issue, userConfig.askForUpdate)
+      logger.info('Commenting request in X+1 weeks: asking for update on issue #%s', issue.number)
+      addComment(client, issue, userConfig.needUpdateFromDeveloper)
         .then(response => {
           logger.info("add comment response: %s", response);
         })
         .catch(logger.error)
+
     }
 
     // close ticket with note when in state 'State: Awaiting user information' for X weeks
@@ -387,13 +417,14 @@ function issuesManagement(response: any) {
 }
 
 function PRsManagement(response: any) {
-  const PRList = response
+  const PRList = response;
+  const unit = fetchFreq.substring(fetchFreq.indexOf(' ') + 1)
+  const time = fetchFreq.substring(0, fetchFreq.indexOf(' '));
   PRList.forEach((pr: any) => {
     let targetLabel = "Target: " + pr.base.ref;
 
     //if new PR, add label Target: where is the target branch, must make sure the label exists at first
-    if (!isGreaterThan(Date.now(), new Date(pr.created_at).getTime(), "", "1")) {
-      logger.info("first if")
+    if (!isGreaterThan(Date.now(), new Date(pr.created_at).getTime(), unit, time)) {
       let labelExists = false;
       allLabelsList.forEach((eachLabel: any) => {
         if (eachLabel.name == targetLabel) {
@@ -445,7 +476,7 @@ async function main() {
   logger.info("starting to fetch issues")
   await getIssues(client, 1, 100)
     .then(response => {
-      logger.info("all issues length: " + size(response))
+      logger.info("all issues length: %d", size(response))
       issuesManagement(response);
     })
     .catch(logger.error);
@@ -454,7 +485,7 @@ async function main() {
   logger.info("starting to fetch labels")
   await getLabelsForRepo(client, 1, 100).then(
     response => {
-      logger.info("all labels size: " + size(response))
+      logger.info("all labels size: %d", size(response))
       allLabelsList = response;
     }
   ).catch(logger.error)
@@ -463,7 +494,7 @@ async function main() {
   logger.info("starting to fetch PRs");
   await getPRs(client, 1, 100)
     .then(response => {
-      logger.info("PRs fetched size: " + size(response))
+      logger.info("PRs fetched size: %d", size(response))
       PRsManagement(response)
     })
     .catch(logger.error)
