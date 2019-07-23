@@ -363,8 +363,7 @@ function issuesManagement(response: any) {
       logger.info('Commenting request: asking for update on issue #%s', issue.number)
       addComment(client, issue, userConfig.askForUpdate)
         .then(response => {
-          logger.info("add comment response: %s");
-          logger.info(response)
+          logger.info("add comment response: %s", response);
         })
         .catch(logger.error)
     }
