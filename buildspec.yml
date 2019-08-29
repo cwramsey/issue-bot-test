@@ -2,6 +2,9 @@ version: 0.1
 
 phases:
   build:
+    install:
+      runtime-versions:
+        nodejs: 8.10
     commands:
       - echo Build completed on `date`
       - tsc
