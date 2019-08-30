@@ -8,3 +8,7 @@ phases:
     commands:
       - echo Build completed on `date`
       - tsc
+
+artifacts:
+  files:
+    - '**/*'
