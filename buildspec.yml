@@ -1,10 +1,13 @@
-version: 0.1
+version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      nodejs: 10
   build:
-    install:
-      runtime-versions:
-        nodejs: 10
+    commands:
+      - echo Build started on `date`
+  post_build:
     commands:
       - echo Build completed on `date`
       - tsc
