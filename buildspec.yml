@@ -7,10 +7,10 @@ phases:
   build:
     commands:
       - echo Build started on `date`
+      - tsc
   post_build:
     commands:
       - echo Build completed on `date`
-      - tsc
 
 artifacts:
   files:
