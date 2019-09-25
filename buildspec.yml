@@ -6,6 +6,11 @@ phases:
       nodejs: 10
     commands:
       - npm install -g typescript
+      - npm install --save @types/lodash
+      - npm install @octokit/rest
+      - npm install winston
+      - npm install dotenv
+      - npm i @types/jest
   pre_build:
     commands:
       - echo Nothing to do in the pre_build phase...
