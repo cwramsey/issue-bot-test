@@ -2,6 +2,12 @@
 
 * Add github creds into .env file
 
+**Running via AWS CodePipeline**
+
+Commit to Github repo will trigger the AWS CodeBuild, which uploads the build artifacts to S3. AWS CodeDeploy will
+
+deploy the latest version to AWS Lambda, the platform the bot runs in.
+
 **Running locally with SAM:**
 
 To get started with the local development:
