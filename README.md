@@ -1,6 +1,13 @@
+## OpenMPI Github Bot
+
+This bot helps to automate the lifecycle management of issues/PRs.
+
 ## Get Started
 
 * Add github creds into .env file
+* Set DRYRUN mode in Enviromment Variables in AWS Lambda
+
+## Usage
 
 **Running via AWS CodePipeline**
 
@@ -26,8 +33,10 @@ To get started with the local development:
 * Dryrun mode can be configured via environment variables in AWS Lambda console. 
 
 
-**Detailed References:** Explains SAM commands and usage in depth.
+**Detailed References:** 
 
 * [CLI Commands](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-command-reference.html)
 * [SAM Template Specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md)
 * [Policy Templates](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html)
+* [GitHub Robot Tasks]
+(https://github.com/open-mpi/ompi/wiki/GitHub-Robot-Tasks)

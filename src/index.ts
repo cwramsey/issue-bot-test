@@ -85,8 +85,8 @@ async function getPRs(client: Octokit, pageNum: number, maxPerPage: number) {
 }
 
 async function getLabelsForRepo(client: Octokit, pageNum: number, maxPerPage: number) {
-  let allLabels: Array<any> = []
 
+  let allLabels: Array<any> = []
   while (true) {
     const { status, data } = await client.issues.listLabelsForRepo({
       owner: userConfig.owner,
@@ -307,7 +307,7 @@ function hasFixForIssue(pr: any) {
   return false;
 }
 
-// go through all labels, check if there is label with name
+// go through all labels, check if there is label with given name
 function hasLabelWithName(issue: any, name: String) {
   const labelList = issue.labels;
   if (isEmpty(labelList)) {
@@ -463,7 +463,7 @@ function PRsManagement(response: any) {
     }
     doesPRContainsCherryPickCommit(pr);
     if (hasLabelWithName(pr, "⚠️ WIP-DNM!")) {
-      //block PRs in "WIP-DNM"
+      //TODO block PRs in "WIP-DNM"
       //seems like there is no API to block a PR?
     }
   })
