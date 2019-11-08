@@ -12,7 +12,8 @@ install();
 logger.info("Application has been initialized.");
 logger.info("Running in mode %s", process.env.NODE_ENV);
 
-const dryRunMode = process.env.DRYRUN
+//const dryRunMode = process.env.DRYRUN
+const dryRunMode = userConfig.DRYRUN
 
 if (dryRunMode) {
   logger.info("Starting in dryrun mode now")
@@ -120,7 +121,7 @@ async function createIssues(client: Octokit, index: number) {
 }
 
 async function addComment(client: Octokit, issue: any, comment: string) {
-  logger.info("trying to add comment to issue# %d with comment: %s", issue.number, comment)
+  logger.info("trying to add comment to issue # %d with comment: %s", issue.number, comment)
   if (dryRunMode) {
     return { response: 'dry run mode: add comment' };
   }
@@ -270,16 +271,18 @@ function isGreaterThan(end: number, begin: number, unit: string, times: string) 
 // go through all labels, check if there is label with prefix, if lableName is empty, check if there is any label
 function hasLabelWithPrefix(issue: any, prefix: String) {
   const labelList = issue.labels;
+  // no label
   if (isEmpty(labelList)) {
     return false;
   }
 
-  labelList.forEach((label: any) => {
-    const name = label.name;
+  for (let i = 0; i < labelList.length; i++) {
+    const name = labelList[i].name;
     if (name.startsWith(prefix)) {
       return true;
     }
-  });
+  }
+
   return false;
 }
 
@@ -307,18 +310,20 @@ function hasFixForIssue(pr: any) {
   return false;
 }
 
-// go through all labels, check if there is label with given name
+// go through all labels, check if there is label with exact name
 function hasLabelWithName(issue: any, name: String) {
   const labelList = issue.labels;
+  // no label
   if (isEmpty(labelList)) {
     return false;
   }
 
-  labelList.forEach((label: any) => {
-    if (label.name == name) {
+  for (let i = 0; i < labelList.length; i++) {
+    const eachLabel = labelList[i].name;
+    if (name == eachLabel) {
       return true;
     }
-  });
+  }
 
   return false;
 }
@@ -351,41 +356,37 @@ function issuesManagement(response: any) {
   const times2 = issueMaxWaitTimeToRelease.substring(0, issueMaxWaitTimeToRelease.indexOf(' '))
   const unit2 = issueMaxWaitTimeToRelease.substring(issueMaxWaitTimeToRelease.indexOf(' ') + 1)
 
-  issuesList.forEach((issue: any) => {
-
-    // skip PR, since PR is regarded as an issue as well from github API
-    if (issue.hasOwnProperty('pull_request')) {
-      return;
-    }
-
-    // comment on ticket when no 'State:' labels have been added to an issue in 'issueMaxNoStateTime' weeks: userConfig.askForUpdate
+  // skip PR, since PR is regarded as an issue as well from github API
+  issuesList.filter((issue: any) => !(issue.hasOwnProperty('pull_request')) && issue.number >= 100).forEach((issue: any) => {
+    // comment ${uerConfig.askForUpdate} on ticket when no 'State:' labels have been added to an issue in ${issueMaxNoStateTime}
     if (isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1) && !hasLabelWithPrefix(issue, 'State:')) {
       logger.info('Commenting request: asking for update on issue #%s', issue.number)
-      addComment(client, issue, userConfig.askForUpdate)
+      addComment(client, issue, userConfig.askForUpdate + ' issue state')
         .then(response => {
-          logger.info("add comment response: %s", response);
+          logger.info("added comment on issue #%s", issue.number, response);
         })
         .catch(logger.error)
     }
-    // comment on ticket when no updates in 'issueMaxNoStateTime' + 1, asking developer to update: userConfig.needUpdateFromDeveloper
+
+    // comment ${userConfig.needUpdateFromDeveloper} on ticket when no updates in ${issueMaxNoStateTime} + 1
     // if no label or 'State: Awaiting developer information'
-    if ((!hasLabelWithName(issue, 'State: Awaiting developer information') || hasLabelWithName(issue, '')) && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1 + 1)) {
+    if ((!hasLabelWithName(issue, 'State: Awaiting developer information') || !hasLabelWithName(issue, '')) && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1 + 1)) {
       logger.info('Commenting request in X+1 weeks: asking for update on issue #%s', issue.number)
       addComment(client, issue, userConfig.needUpdateFromDeveloper)
         .then(response => {
-          logger.info("add comment response: %s", response);
+          logger.info("added comment response: %s", response);
         })
         .catch(logger.error)
 
     }
 
-    // close ticket with note when in state 'State: Awaiting user information' for X weeks
+    // close ticket with note when in state 'State: Awaiting user information' for ${issueMaxNoStateTime}
     if (isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1) && hasLabelWithName(issue, 'State: Awaiting user information')) {
 
       // need to comment on the issue first and then close it
       addComment(client, issue, userConfig.closeIssueNote)
         .then(response => {
-          logger.info("add comment response: %s", response)
+          logger.info("added comment before closing response: %s", response)
         })
         .catch(logger.error)
 
@@ -396,7 +397,7 @@ function issuesManagement(response: any) {
         .catch(logger.error)
     }
 
-    // close ticket when in state 'State: Awaiting merge to rease branches' for more than 'issueMaxWaitTimeToRelease' time
+    // close ticket when in state 'State: Awaiting merge to rease branches' for more than ${issueMaxWaitTimeToRelease} time
     if (hasLabelWithName(issue, 'State: Awaiting merge to release branches') && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit2, times2) && !hasLabelWithPrefix(issue, 'Target:')) {
 
       removeALabelFromIssue(client, issue.number, "State: Awaiting merge to release branches")
@@ -411,8 +412,8 @@ function issuesManagement(response: any) {
         })
         .catch(logger.error)
     }
-
   });
+
 }
 
 function PRsManagement(response: any) {
