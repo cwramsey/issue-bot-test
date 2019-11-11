@@ -569,8 +569,8 @@ function PRsManagement(response: any) {
 
     //TODO block PRs in "WIP-DNM"
     if (hasLabelWithName(pr, "⚠️ WIP-DNM!")) {
-      /*need the repository owner to set it to protected first
-      :https://help.github.com/en/enterprise/2.16/admin/developer-workflow/configuring-protected-branches-and-required-status-checks
+      /* need the repository owner to set it to protected first
+       * https://stackoverflow.com/questions/33442374/use-github-api-to-disable-the-merge-button-on-a-pull-request-and-reenable-it-usi
       */
     }
 
