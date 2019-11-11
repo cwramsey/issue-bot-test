@@ -230,16 +230,31 @@ async function listEventForIssue(client: Octokit, issueNum: number) {
 }
 
 
-// TODO: list all commits
 async function listCommitsForPR(client: Octokit, pullNum: number) {
-  const res = await client.pulls.listCommits({
-    owner: userConfig.owner,
-    repo: userConfig.repo,
-    pull_number: pullNum,
-    per_page: 100,
-    page: 1
-  });
-  return res;
+  let allCommitsForPR: Array<any> = []
+  let pageIndex = 1
+  while (true) {
+    const { status, data } = await client.pulls.listCommits({
+      owner: userConfig.owner,
+      repo: userConfig.repo,
+      pull_number: pullNum,
+      per_page: 100,
+      page: pageIndex
+    });
+
+    if (status != 200) {
+      const error = new Error(`Failed to fetch commits from a PR`)
+      logger.error("error:", status)
+      throw error;
+    }
+
+    if (isEmpty(data)) {
+      break;
+    }
+    allCommitsForPR = allCommitsForPR.concat(data)
+    pageIndex++;
+  }
+  return allCommitsForPR;
 }
 
 async function addLabelsToIssue(client: Octokit, issueNum: number, labels: Array<string>) {
@@ -296,39 +311,6 @@ function hasLabelWithPrefix(issue: any, prefix: String) {
   }
 
   return false;
-}
-
-// check if the pr contains commit with 'cherry picked from commit xxxx'
-function commentPRContainsCherryPickCommit(pr: any) {
-
-  listCommitsForPR(client, pr.number).then(response => {
-
-    response.data.forEach(eachCom => {
-      if (includes(eachCom.commit.message, CHERRYPICKMSG)) {
-        //get the branch the commit is from
-        const indexOfSHA = eachCom.commit.message.indexOf(CHERRYPICKMSG);
-        //length of SHA is 40
-        const SHA = eachCom.commit.message.substring(indexOfSHA + CHERRYPICKMSG.length - 1 + 2, indexOfSHA + CHERRYPICKMSG.length - 1 + 42)
-
-        // supposed to have API to get the branch the commit is from
-        // and then check if the branch is not master, add comment
-
-
-        // TODO: TEST
-        CommitNotInMaster(client, SHA).then(response => {
-          if (response) {
-            // not in master
-            addComment(client, pr, userConfig.askingForChange)
-              .then(response => {
-                logger.info("cherry pick not from master, added comment on pr #%s", pr.number, response);
-              })
-              .catch(logger.error)
-          }
-        }).catch(logger.error)
-      }
-    })
-  }).catch(logger.error);
-  return true;
 }
 
 function hasFixForIssue(pr: any) {
@@ -452,7 +434,7 @@ function issuesManagement(response: any) {
 
 }
 
-async function step1(pr: any) {
+async function addTargetLabelForNewPR(pr: any) {
   const unit = fetchFreq.substring(fetchFreq.indexOf(' ') + 1)
   const time = fetchFreq.substring(0, fetchFreq.indexOf(' '))
   let targetLabel = "Target: " + pr.base.ref;
@@ -471,7 +453,6 @@ async function step1(pr: any) {
       await createLabel(client, targetLabel, "fbca04").then(
         response => {
           logger.info("create label successfully: %s for pr %s", targetLabel, pr.number);
-          // TODO: fix object data structure
           allLabelsList.push({ name: targetLabel })
         }).catch(logger.error)
     }
@@ -491,7 +472,7 @@ async function step1(pr: any) {
   return true;
 }
 
-async function step2(pr: any) {
+async function reduceTargetLabelForPR(pr: any) {
   let targetLabel = "Target: " + pr.base.ref;
   // remove any labels 'Target: *' except for the one that is 'Target: ' where is the target branch
   if (!isEmpty(pr.labels)) {
@@ -527,11 +508,10 @@ async function step2(pr: any) {
   return true;
 }
 
-async function step3(pr: any) {
+async function removeTargetLabelForPR(pr: any) {
   let targetLabel = "Target: " + pr.base.ref;
   // pr has "Fixes #issueNo", on merge, remove "Target:" from the ticket  
   if (hasFixForIssue(pr) && !pr.body.merged_at) {
-    //logger.info("trying to remove %s from pr %s", targetLabel, pr.number)
 
     let hasTarget = false
     for (let i = 0; i < pr.labels.length; i++) {
@@ -549,13 +529,43 @@ async function step3(pr: any) {
   return true;
 }
 
+// check if the pr contains commit with 'cherry picked from commit xxxx'
+function commentPRContainsCherryPickCommit(pr: any) {
+
+  listCommitsForPR(client, pr.number).then(response => {
+
+    response.forEach(eachCom => {
+      if (includes(eachCom.commit.message, CHERRYPICKMSG)) {
+        const indexOfSHA = eachCom.commit.message.indexOf(CHERRYPICKMSG);
+        //length of SHA is 40
+        const SHA = eachCom.commit.message.substring(indexOfSHA + CHERRYPICKMSG.length - 1 + 2, indexOfSHA + CHERRYPICKMSG.length - 1 + 42)
+        CommitNotInMaster(client, SHA).then(response => {
+          if (response) {
+            // not in master
+            addComment(client, pr, userConfig.askingForChange)
+              .then(response => {
+                logger.info("cherry picked msg%s not from master, added comment on pr #%s", eachCom.commit.message, pr.number, response);
+              })
+              .catch(logger.error)
+          }
+        }).catch(logger.error)
+      }
+    })
+  }).catch(logger.error);
+  return true;
+}
+
 function PRsManagement(response: any) {
   const PRList = response;
 
   PRList.forEach((pr: any) => {
-    step1(pr).catch(logger.error).then(res => step2(pr)).catch(logger.error).then(res => step3(pr)).catch(logger.error)
-
-    commentPRContainsCherryPickCommit(pr)
+    addTargetLabelForNewPR(pr)
+      .catch(logger.error)
+      .then(res => reduceTargetLabelForPR(pr))
+      .catch(logger.error)
+      .then(res => removeTargetLabelForPR(pr))
+      .catch(logger.error)
+      .then(res => commentPRContainsCherryPickCommit(pr))
 
     //TODO block PRs in "WIP-DNM"
     if (hasLabelWithName(pr, "⚠️ WIP-DNM!")) {
@@ -569,7 +579,7 @@ function PRsManagement(response: any) {
 
 async function main() {
 
-  /* // fetch all issues 
+  // fetch all issues 
   logger.info("starting to fetch issues")
   await getIssues(client, 1, 100)
     .then(response => {
@@ -577,7 +587,7 @@ async function main() {
       issuesManagement(response);
     })
     .catch(logger.error);
-*/
+
   // fetch all labels
   logger.info("starting to fetch labels")
   await getLabelsForRepo(client, 1, 100).then(
