@@ -20,7 +20,7 @@ if (dryRunMode) {
 }
 
 let allLabelsList: Array<any> = []
-const CHERRYPICKMSG = 'cherry picked from commit'
+const CHERRYPICKMSG = '(cherry picked from commit'
 const fetchFreq = userConfig.fetchFreq
 const issueMaxNoStateTime = userConfig.issueMaxNoStateTime
 const issueMaxWaitTimeToRelease = userConfig.issueMaxWaitTimeToRelease
@@ -118,6 +118,16 @@ async function createIssues(client: Octokit, index: number) {
     title: index + " test creating issue",
   })
   return res
+}
+
+async function CommitNotInMaster(client: Octokit, sha: string) {
+  let query = "repo:" + userConfig.owner + "/" + userConfig.repo + "+hash:" + sha
+
+  const res = await client.search.commits({
+    q: query
+  })
+
+  return res.data.items.length == 0
 }
 
 async function addComment(client: Octokit, issue: any, comment: string) {
@@ -219,6 +229,8 @@ async function listEventForIssue(client: Octokit, issueNum: number) {
   return res;
 }
 
+
+// TODO: list all commits
 async function listCommitsForPR(client: Octokit, pullNum: number) {
   const res = await client.pulls.listCommits({
     owner: userConfig.owner,
@@ -286,17 +298,33 @@ function hasLabelWithPrefix(issue: any, prefix: String) {
   return false;
 }
 
-// checkk if the pr contains commit with 'cherry picked from commit xxxx'
-function doesPRContainsCherryPickCommit(pr: any) {
+// check if the pr contains commit with 'cherry picked from commit xxxx'
+function commentPRContainsCherryPickCommit(pr: any) {
+
   listCommitsForPR(client, pr.number).then(response => {
+
     response.data.forEach(eachCom => {
       if (includes(eachCom.commit.message, CHERRYPICKMSG)) {
         //get the branch the commit is from
         const indexOfSHA = eachCom.commit.message.indexOf(CHERRYPICKMSG);
         //length of SHA is 40
         const SHA = eachCom.commit.message.substring(indexOfSHA + CHERRYPICKMSG.length - 1 + 2, indexOfSHA + CHERRYPICKMSG.length - 1 + 42)
-        // supposed to have API to get the branch the commit is from 
+
+        // supposed to have API to get the branch the commit is from
         // and then check if the branch is not master, add comment
+
+
+        // TODO: TEST
+        CommitNotInMaster(client, SHA).then(response => {
+          if (response) {
+            // not in master
+            addComment(client, pr, userConfig.askingForChange)
+              .then(response => {
+                logger.info("cherry pick not from master, added comment on pr #%s", pr.number, response);
+              })
+              .catch(logger.error)
+          }
+        }).catch(logger.error)
       }
     })
   }).catch(logger.error);
@@ -329,21 +357,29 @@ function hasLabelWithName(issue: any, name: String) {
 }
 
 function hasMoreThanOneTargetLabelThenRemove(issue: any, labelName: string) {
-  const labelsList = issue.labels;
+  const labelsArray = issue.labels;
   let hasTargetLabel = false;
 
-  labelsList.forEach((label: any) => {
+  labelsArray.forEach((label: any) => {
     if (label.name.includes('Target:')) {
       if (label.name === labelName) {
         if (hasTargetLabel == false) {
           hasTargetLabel = true;
         }
         else {
-          removeALabelFromIssue(client, issue.number, label.name)
+          removeALabelFromIssue(client, issue.number, label.name).then(response => {
+            logger.info("remove label %s for issue/PR #%s", labelName, issue.number)
+          }).catch(
+            logger.error
+          )
         }
       }
       else {
-        removeALabelFromIssue(client, issue.number, label.name)
+        removeALabelFromIssue(client, issue.number, label.name).then(response => {
+          logger.info("remove label %s for issue/PR #%s", labelName, issue.number)
+        }).catch(
+          logger.error
+        )
       }
     }
   })
@@ -357,7 +393,7 @@ function issuesManagement(response: any) {
   const unit2 = issueMaxWaitTimeToRelease.substring(issueMaxWaitTimeToRelease.indexOf(' ') + 1)
 
   // skip PR, since PR is regarded as an issue as well from github API
-  issuesList.filter((issue: any) => !(issue.hasOwnProperty('pull_request')) && issue.number >= 100).forEach((issue: any) => {
+  issuesList.filter((issue: any) => !(issue.hasOwnProperty('pull_request'))).forEach((issue: any) => {
     // comment ${uerConfig.askForUpdate} on ticket when no 'State:' labels have been added to an issue in ${issueMaxNoStateTime}
     if (isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1) && !hasLabelWithPrefix(issue, 'State:')) {
       logger.info('Commenting request: asking for update on issue #%s', issue.number)
@@ -370,7 +406,7 @@ function issuesManagement(response: any) {
 
     // comment ${userConfig.needUpdateFromDeveloper} on ticket when no updates in ${issueMaxNoStateTime} + 1
     // if no label or 'State: Awaiting developer information'
-    if ((!hasLabelWithName(issue, 'State: Awaiting developer information') || !hasLabelWithName(issue, '')) && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1 + 1)) {
+    if ((hasLabelWithName(issue, 'State: Awaiting developer information') || !hasLabelWithName(issue, '')) && isGreaterThan(Date.now(), new Date(issue.created_at).getTime(), unit1, times1 + 1)) {
       logger.info('Commenting request in X+1 weeks: asking for update on issue #%s', issue.number)
       addComment(client, issue, userConfig.needUpdateFromDeveloper)
         .then(response => {
@@ -416,63 +452,124 @@ function issuesManagement(response: any) {
 
 }
 
-function PRsManagement(response: any) {
-  const PRList = response;
+async function step1(pr: any) {
   const unit = fetchFreq.substring(fetchFreq.indexOf(' ') + 1)
-  const time = fetchFreq.substring(0, fetchFreq.indexOf(' '));
-  PRList.forEach((pr: any) => {
-    let targetLabel = "Target: " + pr.base.ref;
-
-    //if new PR, add label Target: where is the target branch, must make sure the label exists at first
-    if (!isGreaterThan(Date.now(), new Date(pr.created_at).getTime(), unit, time)) {
-      let labelExists = false;
-      allLabelsList.forEach((eachLabel: any) => {
-        if (eachLabel.name == targetLabel) {
-          labelExists = true;
-        }
-      });
-      if (!labelExists) {
-        //need to create the label first
-        createLabel(client, targetLabel, "fbca04").then(
-          response => {
-            logger.info("create label succeeded: %s", targetLabel)
-          }).catch(logger.error)
+  const time = fetchFreq.substring(0, fetchFreq.indexOf(' '))
+  let targetLabel = "Target: " + pr.base.ref;
+  let newPRlabels: Array<any> = []
+  //if new PR(created after the previous management), add label Target: where is the target branch, must make sure the label exists at first
+  if (!isGreaterThan(Date.now(), new Date(pr.created_at).getTime(), unit, time)) {
+    let labelExists = false;
+    allLabelsList.forEach((eachLabel: any) => {
+      if (eachLabel.name == targetLabel) {
+        labelExists = true;
       }
+    });
 
-      //add label to this PR
-      addLabelsToIssue(client, pr.number, [targetLabel]).then(
+    if (!labelExists) {
+      //need to create the label first
+      await createLabel(client, targetLabel, "fbca04").then(
         response => {
-          logger.info("added label to pr response", response)
+          logger.info("create label successfully: %s for pr %s", targetLabel, pr.number);
+          // TODO: fix object data structure
+          allLabelsList.push({ name: targetLabel })
+        }).catch(logger.error)
+    }
+
+    //add label to this PR
+    await addLabelsToIssue(client, pr.number, [targetLabel]).then(
+      response => {
+        logger.info("added pr #%s with label: %s", pr.number, targetLabel)
+        newPRlabels.push({ name: targetLabel })
+      }
+    ).catch(logger.error);
+  } else {
+    logger.info("Ignore old PR #%s", pr.number);
+  }
+
+  pr.labels.concat(newPRlabels);
+  return true;
+}
+
+async function step2(pr: any) {
+  let targetLabel = "Target: " + pr.base.ref;
+  // remove any labels 'Target: *' except for the one that is 'Target: ' where is the target branch
+  if (!isEmpty(pr.labels)) {
+    //hasMoreThanOneTargetLabelThenRemove(pr, targetLabel);
+    const labelsArray = pr.labels;
+    let hasTargetLabel = false;
+
+    for (let i = 0; i < labelsArray.length; i++) {
+      let label = labelsArray[i]
+      if (label.name.includes('Target:')) {
+        if (label.name === targetLabel) {
+          if (hasTargetLabel == false) {
+            hasTargetLabel = true;
+          }
+          else {
+            await removeALabelFromIssue(client, pr.number, label.name).then(response => {
+              logger.info("remove duplicate label %s for issue/PR #%s", label.name, pr.number)
+            }).catch(
+              logger.error
+            )
+          }
         }
-      ).catch(logger.error);
+        else {
+          await removeALabelFromIssue(client, pr.number, label.name).then(response => {
+            logger.info("remove duplicate label %s for issue/PR #%s", label.name, pr.number)
+          }).catch(
+            logger.error
+          )
+        }
+      }
     }
+  }
+  return true;
+}
 
-    // remove any labels 'Target: *' except for the one that is 'Target: '
-    if (!isEmpty(pr.labels)) {
-      hasMoreThanOneTargetLabelThenRemove(pr, targetLabel);
+async function step3(pr: any) {
+  let targetLabel = "Target: " + pr.base.ref;
+  // pr has "Fixes #issueNo", on merge, remove "Target:" from the ticket  
+  if (hasFixForIssue(pr) && !pr.body.merged_at) {
+    //logger.info("trying to remove %s from pr %s", targetLabel, pr.number)
+
+    let hasTarget = false
+    for (let i = 0; i < pr.labels.length; i++) {
+      if (pr.labels[i].name.includes('Target:')) {
+        hasTarget = true;
+        break;
+      }
     }
-
-    //pr has "Fixes #issueNo", on merge, remove "Target:" from the ticket  
-    if (hasFixForIssue(pr) && !pr.body.merged_at) {
-
-      removeALabelFromIssue(client, pr.number, targetLabel).then(response => {
-        logger.info("remove target: label response: %s", response)
+    if (hasTarget) {
+      await removeALabelFromIssue(client, pr.number, targetLabel).then(response => {
+        logger.info("remove label %s for PR: %s", targetLabel, pr.number)
       }).catch(logger.error)
     }
-    if (doesPRContainsCherryPickCommit(pr)) {
-      //add comment asking for change if there is a "cherry picked from commit XXXX" in the commit and XXXX is not from master
-    }
-    doesPRContainsCherryPickCommit(pr);
+  }
+  return true;
+}
+
+function PRsManagement(response: any) {
+  const PRList = response;
+
+  PRList.forEach((pr: any) => {
+    step1(pr).catch(logger.error).then(res => step2(pr)).catch(logger.error).then(res => step3(pr)).catch(logger.error)
+
+    commentPRContainsCherryPickCommit(pr)
+
+    //TODO block PRs in "WIP-DNM"
     if (hasLabelWithName(pr, "⚠️ WIP-DNM!")) {
-      //TODO block PRs in "WIP-DNM"
-      //seems like there is no API to block a PR?
+      /*need the repository owner to set it to protected first
+      :https://help.github.com/en/enterprise/2.16/admin/developer-workflow/configuring-protected-branches-and-required-status-checks
+      */
     }
-  })
+
+  });
 }
 
 async function main() {
 
-  // fetch all issues 
+  /* // fetch all issues 
   logger.info("starting to fetch issues")
   await getIssues(client, 1, 100)
     .then(response => {
@@ -480,7 +577,7 @@ async function main() {
       issuesManagement(response);
     })
     .catch(logger.error);
-
+*/
   // fetch all labels
   logger.info("starting to fetch labels")
   await getLabelsForRepo(client, 1, 100).then(
@@ -494,7 +591,7 @@ async function main() {
   logger.info("starting to fetch PRs");
   await getPRs(client, 1, 100)
     .then(response => {
-      logger.info("PRs fetched size: %d", size(response))
+      logger.info("all PRs size: %d", size(response))
       PRsManagement(response)
     })
     .catch(logger.error)
