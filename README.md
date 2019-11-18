@@ -1,6 +1,6 @@
 ## OpenMPI Github Bot
 
-This bot helps to automate the lifecycle management of issues/PRs.
+This bot utilizes native AWS services to help to automate the lifecycle management of issues/PRs.
 
 ## Get Started
 
