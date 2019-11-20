@@ -4,6 +4,7 @@ node_modules
 **/*.js
 build
 dist
+.env
 *.zip
 /tmp
 .DS_Store
