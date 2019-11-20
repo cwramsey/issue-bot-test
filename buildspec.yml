@@ -25,7 +25,6 @@ phases:
       - mkdir forLambdaFuncUse
       - cp -r ./dist/*.js ./forLambdaFuncUse/
       - cp -r ./package.json ./forLambdaFuncUse/
-      - cp -r ./.env ./forLambdaFuncUse/
       - cp -r ./node_modules/ ./forLambdaFuncUse/node_modules
       - cp -r ./event.json ./forLambdaFuncUse/
       - echo Build completed on `date`
