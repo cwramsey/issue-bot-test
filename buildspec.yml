@@ -34,5 +34,4 @@ cache:
 artifacts:
   files:
     - 'forLambdaFuncUse/**/*'
-  discard-paths: yes
   name: ForLambdaFunctionUse
