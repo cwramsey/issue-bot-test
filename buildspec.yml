@@ -26,4 +26,8 @@ cache:
     - 'node_modules/**/*'
 artifacts:
   files:
-    - '**/*'
+    - './dist/*'
+    - './package.json'
+    - './.env'
+    - './node_modules'
+  name: ForLambdaFunctionUse

@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/cwramsey/issue-bot-test#readme",
   "dependencies": {
+    "@aws-cdk/aws-codepipeline-actions": "^1.16.3",
     "@octokit/rest": "^16.27.3",
     "@types/es6-promise": "^3.3.0",
     "@types/lodash": "^4.14.134",
