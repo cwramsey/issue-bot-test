@@ -20,14 +20,20 @@ phases:
       - tsc
   post_build:
     commands:
+      - echo refactor build artifacts for lambda
+      - rm -r forLambdaFuncUse
+      - mkdir forLambdaFuncUse
+      - cp -r ./dist/*.js ./forLambdaFuncUse/
+      - cp -r ./package.json ./forLambdaFuncUse/
+      - cp -r ./.env ./forLambdaFuncUse/
+      - cp -r ./node_modules/ ./forLambdaFuncUse/node_modules
+      - cp -r ./event.json ./forLambdaFuncUse/
       - echo Build completed on `date`
 cache:
   paths:
     - 'node_modules/**/*'
 artifacts:
   files:
-    - './dist/*'
-    - './package.json'
-    - './.env'
-    - './node_modules'
+    - 'forLambdaFuncUse/**/*'
+  discard-paths: yes
   name: ForLambdaFunctionUse
