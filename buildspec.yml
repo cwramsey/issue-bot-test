@@ -27,6 +27,7 @@ phases:
       - cp -r ./package.json ./forLambdaFuncUse/
       - cp -r ./node_modules/ ./forLambdaFuncUse/node_modules
       - cp -r ./event.json ./forLambdaFuncUse/
+      - zip -r ./func.zip .
       - echo Build completed on `date`
 cache:
   paths:
