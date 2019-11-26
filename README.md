@@ -13,7 +13,9 @@ This bot utilizes native AWS services to help to automate the lifecycle manageme
 
 Commit to Github repo will trigger the AWS CodeBuild, which uploads the build artifacts to S3. AWS CodeDeploy will
 
-deploy the latest version to AWS Lambda, the platform the bot runs in.
+deploy the latest version to AWS Lambda, the platform the bot runs on. The Lambda function is triggered by AWS CloudWatch
+
+Events with a cron expression.
 
 **Running locally with SAM:**
 
