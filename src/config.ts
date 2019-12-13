@@ -1,7 +1,7 @@
 const userConfig = {
     "owner": "open-mpi",
     "repo": "ompi-infrastructure-test",
-    "fetchFreq": "1 days",
+    "fetchFreq": "1 hours",
     "issueMaxNoStateTime": "1 weeks",
     "askForUpdate": "Please update the issue.",
     "needUpdateFromDeveloper": "Developer, please update the issue.",
