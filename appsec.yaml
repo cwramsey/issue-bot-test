@@ -1,0 +1,9 @@
+version: 1.0
+Resources:
+  - OpenMPIGithubBotLambda:
+      Type: AWS::Lambda::Function
+      Properties:
+        Name: "OpenMPIGithubBotLambda"
+        Alias: "aliasB"
+        CurrentVersion: "1"
+        TargetVersion: "1"

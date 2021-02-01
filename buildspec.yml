@@ -1,0 +1,41 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 10
+    commands:
+      - npm install -g typescript
+      - npm install --save @types/lodash
+      - npm install @octokit/rest
+      - npm install winston
+      - npm install dotenv
+      - npm i @types/jest
+  pre_build:
+    commands:
+      - echo Nothing to do in the pre_build phase...
+  build:
+    commands:
+      - echo Build started on `date`
+      - tsc
+  post_build:
+    commands:
+      - echo refactor build artifacts for lambda
+      - rm -r forLambdaFuncUse || true
+      - mkdir forLambdaFuncUse
+      - cp -r ./dist/*.js ./forLambdaFuncUse/
+      - cp -r ./package.json ./forLambdaFuncUse/
+      - cp -r ./node_modules/ ./forLambdaFuncUse/node_modules
+      - cp -r ./event.json ./forLambdaFuncUse/
+      - cd forLambdaFuncUse
+      - zip -r ../func.zip .
+      - ls -la
+      - echo Build completed on `date`
+cache:
+  paths:
+    - 'node_modules/**/*'
+artifacts:
+  files:
+    # - 'forLambdaFuncUse/**/*'
+    - func.zip
+  name: ForLambdaFunctionUse

@@ -20,9 +20,16 @@
   },
   "homepage": "https://github.com/cwramsey/issue-bot-test#readme",
   "dependencies": {
-    "@octokit/rest": "^16.26.0",
+    "@aws-cdk/aws-codepipeline-actions": "^1.16.3",
+    "@octokit/rest": "^16.27.3",
+    "@types/es6-promise": "^3.3.0",
+    "@types/lodash": "^4.14.134",
+    "acorn": "^6.1.1",
+    "async": "^3.0.1",
+    "aws-sdk": "^2.469.0",
     "dotenv": "^8.0.0",
     "github-api": "^3.2.0",
+    "lodash": "^4.17.11",
     "oauth": "^0.9.15",
     "source-map-support": "^0.5.12",
     "winston": "^3.2.1"

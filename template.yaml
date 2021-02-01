@@ -1,0 +1,18 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Github Issue Bot'
+Parameters:
+  
+Resources:
+  githubissuebot:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs8.10
+      CodeUri: ./
+      Description: >-
+        Github issue bot, implements issues lifecycle management and PR lifecycle management.
+      MemorySize: 128
+      Timeout: 10
+      
+      
